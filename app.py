@@ -21,6 +21,10 @@ load_dotenv()
 AWS_REGION = os.getenv("AWS_REGION")
 SQS_QUEUE_URL = os.getenv("AWS_SQS_URL")
 DYNAMODB_TABLE_NAME = os.getenv("AWS_DYNAMODB_TABLE")
+# Opcional: aponta o client do DynamoDB para o container "DynamoDB Local" no
+# docker-compose (ex: http://dynamodb-local:8000). O SQS continua sempre real/AWS,
+# pois o desafio exige a fila de verdade mesmo em ambiente local.
+DYNAMODB_ENDPOINT_URL = os.getenv("AWS_DYNAMODB_ENDPOINT_URL")
 
 if not all([AWS_REGION, SQS_QUEUE_URL, DYNAMODB_TABLE_NAME]):
     log.critical("Erro: AWS_REGION, AWS_SQS_URL, e AWS_DYNAMODB_TABLE devem ser definidos.")
@@ -31,7 +35,16 @@ if not all([AWS_REGION, SQS_QUEUE_URL, DYNAMODB_TABLE_NAME]):
 try:
     session = boto3.Session(region_name=AWS_REGION)
     sqs_client = session.client("sqs")
-    dynamodb_client = session.client("dynamodb")
+    if DYNAMODB_ENDPOINT_URL:
+        log.info(f"Usando DynamoDB Local em {DYNAMODB_ENDPOINT_URL}")
+        dynamodb_client = session.client(
+            "dynamodb",
+            endpoint_url=DYNAMODB_ENDPOINT_URL,
+            aws_access_key_id="local",
+            aws_secret_access_key="local",
+        )
+    else:
+        dynamodb_client = session.client("dynamodb")
     log.info(f"Clientes Boto3 inicializados na região {AWS_REGION}")
 except NoCredentialsError:
     log.critical("Credenciais da AWS não encontradas. Verifique seu ambiente.")
